@@ -239,17 +239,35 @@ def compact_evidence_to_text_split(compact_evs: List[Dict[str, Any]], evid_dict:
 
     parts: List[str] = []
     if symptoms_lines:
-        parts.append("Symptoms / Current findings:\n" + "\n".join(symptoms_lines))
+        parts.append("Symptoms & Current findings:\n" + "\n".join(symptoms_lines))
     if antecedent_lines:
-        parts.append("Antecedents / Risk factors:\n" + "\n".join(antecedent_lines))
+        parts.append("Antecedents & Risk factors:\n" + "\n".join(antecedent_lines))
     return "\n\n".join(parts)
 
 
-def make_sft_example(row: Dict[str, Any], evid_dict: Dict[str, Any], max_lines: Optional[int] = None) -> Dict[str, Any]:
+def make_sft_example(row: Dict[str, Any], evid_dict: Dict[str, Any], max_lines: Optional[int] = None, k: int = 5) -> Dict[str, Any]:
     """Create a single SFT example from a sampled row dict."""
     age = row.get("AGE")
     sex = row.get("SEX")
     label = row.get("PATHOLOGY")
+
+    ddx_raw = parse_list_cell(row.get("DIFFERENTIAL_DIAGNOSIS"))
+    ddx_pairs = []
+    for item in ddx_raw:
+        if isinstance(item, (list, tuple)) and len(item) >= 2:
+            name, prob = item[0], item[1]
+            try:
+                ddx_pairs.append((str(name).strip(), round(float(prob), 3)))
+            except Exception:
+                continue
+
+    ddx_pairs.sort(key=lambda x: x[1], reverse=True)
+    topk = [{"label": n, "score": p} for n, p in ddx_pairs[:k]]
+
+    output_obj = {
+        "primary_diagnosis": label,
+        "differential_diagnosis": topk,
+    }
 
     # initial evidence -> header line
     init_tok = row.get("INITIAL_EVIDENCE")
@@ -273,30 +291,48 @@ def make_sft_example(row: Dict[str, Any], evid_dict: Dict[str, Any], max_lines: 
     input_text = "\n".join(header) + "\n\n" + findings
 
     instruction = (
-        "You are a clinical decision support model. "
-        "Given the patient information and findings, output the single most likely diagnosis "
-        "(one disease label only, no explanation)."
+        "You are an expert in medical diagnostic reasoning."
+        "Analyze the patient's demographics, initial complaint, and symptoms/antecedents/risk factors."
+        "Provide a structered assessement in valid JSON format with two fields: "
+        '"primary_diagnosis" (the single most likely diagnosis label) and '
+        '"differential_diagnosis" (a list of top candidate diseases with their probabilities).'
+        "Do not output any conversational text, only the JSON object."
     )
 
-    return {"instruction": instruction, "input": input_text, "output": str(label).strip()}
+    return {
+        "instruction": instruction,
+        "input": input_text,
+        "output": json.dumps(output_obj, ensure_ascii=False)
+    }
 
 
 # -----------------------------
 # Sampling + Export
 # -----------------------------
+def _normalize_colname(c: str) -> str:
+    return str(c).strip().lstrip("\ufeff")
+
 def reservoir_sample_csv(csv_path: Path, n: int, seed: int, chunksize: int = 50000) -> List[Dict[str, Any]]:
-    """
-    Uniformly sample n rows from a large CSV without loading all rows (reservoir sampling).
-    Returns a list of dicts with the required columns.
-    """
     rng = random.Random(seed)
     reservoir: List[Dict[str, Any]] = []
     seen = 0
 
-    usecols = ["AGE", "SEX", "PATHOLOGY", "EVIDENCES", "INITIAL_EVIDENCE"]
-    for chunk in pd.read_csv(csv_path, usecols=usecols, chunksize=chunksize):
-        for r in chunk.itertuples(index=False, name=None):
-            row_dict = dict(zip(usecols, r))
+    required = ["AGE", "SEX", "PATHOLOGY", "EVIDENCES", "INITIAL_EVIDENCE"]
+    optional = ["DIFFERENTIAL_DIAGNOSIS"]
+
+    for chunk in pd.read_csv(csv_path, chunksize=chunksize):
+        chunk = chunk.rename(columns=_normalize_colname)
+
+        missing = [c for c in required if c not in chunk.columns]
+        if missing:
+            raise ValueError(f"Missing required columns in {csv_path}: {missing}\nActual cols={list(chunk.columns)}")
+
+        cols = required + [c for c in optional if c in chunk.columns]
+        chunk = chunk[cols]
+
+        for _, row in chunk.iterrows():
+            row_dict = {c: row[c] for c in cols}
+
             if seen < n:
                 reservoir.append(row_dict)
             else:
@@ -307,20 +343,19 @@ def reservoir_sample_csv(csv_path: Path, n: int, seed: int, chunksize: int = 500
 
     if seen == 0:
         raise RuntimeError(f"No rows read from {csv_path}")
-    if len(reservoir) < n:
-        return reservoir
     return reservoir
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base_dir", type=str, default="Datasets/DDXPlus", help="DDXPlus directory")
-    ap.add_argument("--split", type=str, default="train", choices=["train", "validate", "test"], help="Which CSV split")
+    ap.add_argument("--split", type=str, default="validate", choices=["train", "validate", "test"], help="Which CSV split")
     ap.add_argument("--n", type=int, default=100, help="Number of samples to export")
+    ap.add_argument("--k", type=int, default=5, help="Top-k size for differential diagnoses")
     ap.add_argument("--seed", type=int, default=42, help="Random seed for sampling")
     ap.add_argument("--chunksize", type=int, default=50000, help="CSV chunksize for streaming read")
     ap.add_argument("--max_lines", type=int, default=None, help="Optional cap on total evidence lines")
-    ap.add_argument("--out", type=str, default="processed/ddxplus_sft/train_100.jsonl", help="Output JSONL path")
+    ap.add_argument("--out", type=str, default="processed/ddxplus_sft/validate.jsonl", help="Output JSONL path")
     args = ap.parse_args()
 
     base = Path(args.base_dir)
@@ -339,17 +374,50 @@ def main():
     with open(cond_path, "r", encoding="utf-8") as f:
         _ = json.load(f)
 
-    sampled_rows = reservoir_sample_csv(csv_path, n=args.n, seed=args.seed, chunksize=args.chunksize)
-
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(out_path, "w", encoding="utf-8") as fout:
-        for row in sampled_rows:
-            ex = make_sft_example(row, evid_dict, max_lines=args.max_lines)
-            fout.write(json.dumps(ex, ensure_ascii=False) + "\n")
+    required = ["AGE", "SEX", "PATHOLOGY", "EVIDENCES", "INITIAL_EVIDENCE"]
+    optional = ["DIFFERENTIAL_DIAGNOSIS"]
 
-    print(f"Wrote {len(sampled_rows)} SFT examples to: {out_path.resolve()}")
+    def _norm(c: str) -> str:
+        return str(c).strip().lstrip("\ufeff")
+    
+    written = 0
+
+    with open(out_path, "w", encoding="utf-8") as fout:
+        for chunk in pd.read_csv(csv_path, chunksize=args.chunksize):
+            chunk = chunk.rename(columns=_norm)
+
+            missing = [c for c in required if c not in chunk.columns]
+            if missing:
+                raise ValueError(
+                    f"Missing required columns in {csv_path}: {missing}\nActual cols={list(chunk.columns)}"
+            )
+            cols = required + [c for c in optional if c in chunk.columns]
+
+            chunk = chunk[cols]
+
+            for row_vals in chunk.itertuples(index=False, name=None):
+                row = dict(zip(cols, row_vals))
+                ex = make_sft_example(row, evid_dict, max_lines=args.max_lines, k=args.k)
+                fout.write(json.dumps(ex, ensure_ascii=False) + "\n")
+                written += 1
+
+    print(f"Wrote {written} SFT examples to: {out_path.resolve()}")
+
+    # sampled_rows = reservoir_sample_csv(csv_path, n=args.n, seed=args.seed, chunksize=args.chunksize)
+
+    # out_path = Path(args.out)
+    # out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # with open(out_path, "w", encoding="utf-8") as fout:
+    #     for row in sampled_rows:
+    #         ex = make_sft_example(row, evid_dict, max_lines=args.max_lines, k=args.k)
+    #         fout.write(json.dumps(ex, ensure_ascii=False) + "\n")
+
+    # print(f"Wrote {len(sampled_rows)} SFT examples to: {out_path.resolve()}")
+
 
 
 if __name__ == "__main__":
