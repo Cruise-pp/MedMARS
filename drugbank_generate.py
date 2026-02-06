@@ -9,7 +9,6 @@ def strip_ns(tag: str) -> str:
     """Remove XML namespace: '{ns}tag' -> 'tag'."""
     return tag.split("}", 1)[-1] if "}" in tag else tag
 
-# 下面两个用于过滤明显不像“别名”的 synonym（可选）
 _ec_like = re.compile(r"^\d+(\.\d+)+$")  # e.g., 3.4.21.5
 
 def keep_synonym(raw: str) -> bool:
@@ -36,6 +35,13 @@ def get_drug_name(drug_elem: ET.Element) -> str:
     """Find first <name>...</name> under this drug."""
     for ch in drug_elem.iter():
         if strip_ns(ch.tag) == "name":
+            return (ch.text or "").strip()
+    return ""
+
+def get_indication_text(drug_elem: ET.Element) -> str:
+    """Find first <indication>...</indication> under this drug."""
+    for ch in drug_elem.iter():
+        if strip_ns(ch.tag) == "indication":
             return (ch.text or "").strip()
     return ""
 
@@ -99,11 +105,13 @@ def parse_one_drug(drug_elem: ET.Element) -> Tuple[Optional[Dict], List[Dict]]:
 
     src_name = get_drug_name(drug_elem)
     syns = collect_synonyms(drug_elem)
+    ind = get_indication_text(drug_elem)
 
     node_rec = {
         "drug_id": src_id,
         "name": src_name,
-        "synonyms": syns
+        "synonyms": syns,
+        "indication": ind
     }
 
     edges = []
@@ -151,7 +159,6 @@ def extract_jsonl(xml_path: Path, out_nodes: Path, out_edges: Path, max_drugs: O
                     fedges.write(json.dumps(e, ensure_ascii=False) + "\n")
                     n_edges_written += 1
 
-                # 释放内存
                 elem.clear()
 
                 if max_drugs is not None and n_drugs_seen >= max_drugs:
@@ -160,7 +167,6 @@ def extract_jsonl(xml_path: Path, out_nodes: Path, out_edges: Path, max_drugs: O
                 if n_drugs_seen % 500 == 0:
                     print(f"[progress] drugs_seen={n_drugs_seen} nodes={n_nodes_written} edges={n_edges_written}")
 
-            # pop stack for end event
             stack.pop()
 
     print("[done]")
