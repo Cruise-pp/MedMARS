@@ -23,6 +23,9 @@ def keep_synonym(raw: str) -> bool:
         return False
     return True
 
+def text_all(elem: ET.Element) -> str:
+    return " ".join(t.strip() for t in elem.itertext() if t and t.strip()).strip()
+
 def get_primary_drug_id(drug_elem: ET.Element) -> Optional[str]:
     """Find <drugbank-id primary='true'>DBxxxxx</drugbank-id>"""
     for ch in drug_elem.iter():
@@ -38,12 +41,34 @@ def get_drug_name(drug_elem: ET.Element) -> str:
             return (ch.text or "").strip()
     return ""
 
-def get_indication_text(drug_elem: ET.Element) -> str:
-    """Find first <indication>...</indication> under this drug."""
+# def get_indication_text(drug_elem: ET.Element) -> str:
+#     """Find first <indication>...</indication> under this drug."""
+#     for ch in drug_elem.iter():
+#         if strip_ns(ch.tag) == "indication":
+#             return (ch.text or "").strip()
+#     return ""
+
+# def get_description_text(drug_elem: ET.Element) -> str:
+#     """Find first <description>...</description> under this drug."""
+#     for ch in drug_elem.iter():
+#         if strip_ns(ch.tag) == "description":
+#             return (ch.text or "").strip()
+#     return ""
+
+def get_first_child_text(drug_elem: ET.Element, child_tag: str) -> str:
+    """
+    Return full text of the first matching tag under <drug>, e.g. child_tag="description"/"indication".
+    """
     for ch in drug_elem.iter():
-        if strip_ns(ch.tag) == "indication":
-            return (ch.text or "").strip()
+        if strip_ns(ch.tag) == child_tag:
+            return text_all(ch)
     return ""
+
+def get_description_text(drug_elem: ET.Element) -> str:
+    return get_first_child_text(drug_elem, "description")
+
+def get_indication_text(drug_elem: ET.Element) -> str:
+    return get_first_child_text(drug_elem, "indication")
 
 def collect_synonyms(drug_elem: ET.Element, limit: Optional[int] = None) -> List[str]:
     """Collect all <synonym> text under this drug."""
@@ -106,12 +131,14 @@ def parse_one_drug(drug_elem: ET.Element) -> Tuple[Optional[Dict], List[Dict]]:
     src_name = get_drug_name(drug_elem)
     syns = collect_synonyms(drug_elem)
     ind = get_indication_text(drug_elem)
+    des = get_description_text(drug_elem)
 
     node_rec = {
         "drug_id": src_id,
         "name": src_name,
         "synonyms": syns,
-        "indication": ind
+        "indication": ind,
+        "description": des
     }
 
     edges = []
