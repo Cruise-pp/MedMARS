@@ -3,7 +3,6 @@ from typing import TypedDict, Annotated, List, Optional
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage, AIMessage
-
 import cv2
 import numpy as np
 
@@ -116,48 +115,3 @@ workflow.add_edge("synthesizer_agent", END)
 
 # Compile with the checkpointer
 app = workflow.compile(checkpointer=memory) # <--- NEW: Bind memory here
-
-if __name__ == "__main__":
-    # Define a thread ID to represent one specific user session
-    config = {"configurable": {"thread_id": "session_user_123"}}
-
-    # --- ROUND 1: User uploads image and asks a question ---
-    print(">>> ROUND 1: Sending Image + Text")
-    input_1 = {
-        "user_text": "What is this red spot?",
-        "user_image": "img_path.jpg",
-        "messages": [HumanMessage(content="What is this red spot?")]
-    }
-    
-    # We pass 'config' to tell LangGraph to save this state under 'session_user_123'
-    for event in app.stream(input_1, config=config):
-        pass # Just running through to completion
-    
-    # Inspect final state of Round 1
-    final_state_1 = app.get_state(config)
-    print(f"Bot: {final_state_1.values['final_response']}")
-
-    # --- ROUND 2: User asks a follow-up (No image, refers to previous context) ---
-    print("\n>>> ROUND 2: Follow-up question (Memory Test)")
-    
-    # Note: We do NOT provide an image here. The memory should know about the previous interaction.
-    input_2 = {
-        "user_text": "Is it dangerous?",
-        "user_image": None, # No new image
-        "messages": [HumanMessage(content="Is it dangerous?")]
-    }
-    
-    # Run again with SAME thread_id
-    for event in app.stream(input_2, config=config):
-        pass
-        
-    final_state_2 = app.get_state(config)
-    print(f"Bot: {final_state_2.values['final_response']}")
-    
-    print(f"\nTotal Messages in History: {len(final_state_2.values['messages'])}")
-
-    # Visualization
-    image_bytes = app.get_graph().draw_mermaid_png()
-    decoded = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), -1)
-    cv2.imwrite("graph.png", decoded)
-    print("Graph flowchart saved.")
