@@ -369,4 +369,10 @@ def ddi_between_by_name(drug_a: str, drug_b: str, top_n: int = 10, db_path: str 
     a_id = ra["candidates"][0]["drug_id"]
     b_id = rb["candidates"][0]["drug_id"]
     ddi = ddi_between(a_id, b_id, top_n=top_n, db_path=db_path)
-    return {"drug_a_query": drug_a, "drug_b_query": drug_b, "status": ddi["status"], "a": ra["candidates"][0], "b": rb["candidates"][0], "evidence": ddi["evidence"]}
+    
+    return {"drug_a_query": drug_a,
+            "drug_b_query": drug_b, 
+            "status": ddi["status"], 
+            "a": ra["candidates"][0], 
+            "b": rb["candidates"][0], 
+            "evidence": ddi["evidence"]}

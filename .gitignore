@@ -8,3 +8,4 @@ __pycache__/
 .venv/
 *.ipynb
 .ipynb_checkpoints/
+.vscode/
