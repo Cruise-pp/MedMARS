@@ -132,7 +132,23 @@ def normalize_tokens_with_meta(tokens: List[Any], evid_dict: Dict[str, Any]) -> 
         out.append(ev)
     return out
 
-def normalize_topk(topk: List[Dict[str, Any]], key: str = "score") -> List[Dict[str, Any]]:
+# def normalize_topk(topk: List[Dict[str, Any]], key: str = "score") -> List[Dict[str, Any]]:
+#     s = 0.0
+#     for x in topk:
+#         try:
+#             s += float(x.get(key, 0.0))
+#         except Exception:
+#             pass
+#     if s <= 0:
+#         return topk
+#     out = []
+#     for x in topk:
+#         y = dict(x)
+#         y[key] = float(y.get(key, 0.0)) / s
+#         out.append(y)
+#     return out
+
+def normalize_topk(topk, key="score", ndigits=2):
     s = 0.0
     for x in topk:
         try:
@@ -141,11 +157,16 @@ def normalize_topk(topk: List[Dict[str, Any]], key: str = "score") -> List[Dict[
             pass
     if s <= 0:
         return topk
+
     out = []
     for x in topk:
         y = dict(x)
-        y[key] = float(y.get(key, 0.0)) / s
+        try:
+            y[key] = round(float(y.get(key, 0.0)) / s, ndigits)
+        except Exception:
+            y[key] = 0.0
         out.append(y)
+
     return out
 
 def compact_evidence_list(norm_evs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -365,13 +386,13 @@ def reservoir_sample_csv(csv_path: Path, n: int, seed: int, chunksize: int = 500
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base_dir", type=str, default="Datasets/DDXPlus", help="DDXPlus directory")
-    ap.add_argument("--split", type=str, default="test", choices=["train", "validate", "test"], help="Which CSV split")
+    ap.add_argument("--split", type=str, default="validate", choices=["train", "validate", "test"], help="Which CSV split")
     ap.add_argument("--n", type=int, default=100, help="Number of samples to export")
     ap.add_argument("--k", type=int, default=5, help="Top-k size for differential diagnoses")
     ap.add_argument("--seed", type=int, default=42, help="Random seed for sampling")
     ap.add_argument("--chunksize", type=int, default=50000, help="CSV chunksize for streaming read")
     ap.add_argument("--max_lines", type=int, default=None, help="Optional cap on total evidence lines")
-    ap.add_argument("--out", type=str, default="processed/ddxplus_sft/test.jsonl", help="Output JSONL path")
+    ap.add_argument("--out", type=str, default="processed/ddxplus_sft/validate.jsonl", help="Output JSONL path")
     args = ap.parse_args()
 
     base = Path(args.base_dir)
