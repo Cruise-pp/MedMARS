@@ -83,7 +83,7 @@ def main():
                         help="Base directory containing VQA.csv, caption.csv, and original images.")
     parser.add_argument("--output_dir", type=Path, default=Path("../data"),
                         help="Base directory to save the JSONL files and sampled images.")
-    parser.add_argument("--sample_size", type=int, default=1024,
+    parser.add_argument("--sample_size", type=int, default=1280,
                         help="Number of items to sample for the smaller dataset.")
 
     args = parser.parse_args()
