@@ -330,7 +330,7 @@ def make_sft_example(row: Dict[str, Any], evid_dict: Dict[str, Any], max_lines: 
     instruction = (
         "You are an expert in medical diagnostic reasoning."
         "Analyze the patient's demographics, initial complaint, and symptoms/antecedents/risk factors."
-        "Provide a structered assessement in valid JSON format with two fields: "
+        "Provide a structured assessment in valid JSON format with two fields: "
         '"primary_diagnosis" (the single most likely diagnosis label) and '
         '"differential_diagnosis" (a list of top candidate diseases with their probabilities).'
         "Do not output any conversational text, only the JSON object."

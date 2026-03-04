@@ -1,6 +1,7 @@
 import os
 import json
 import argparse
+import random
 from typing import Optional, Dict
 
 import torch
@@ -14,8 +15,10 @@ PROMPT_TMPL = (
     "### Output:\n"
 )
 
+
 def build_prompt(ex: Dict) -> str:
     return PROMPT_TMPL.format(instruction=ex["instruction"], input=ex["input"])
+
 
 def extract_json_obj(text: str) -> Optional[str]:
     t = (text or "").strip()
@@ -25,15 +28,27 @@ def extract_json_obj(text: str) -> Optional[str]:
         return None
     return t[i:j+1].strip()
 
+
+def parse_gt_output(ex: Dict) -> Dict:
+    """Parse ground truth from the 'output' field of SFT data."""
+    out = ex.get("output", "")
+    try:
+        obj = json.loads(out) if isinstance(out, str) else out
+        return obj if isinstance(obj, dict) else {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base_model", default="Qwen/Qwen3-0.6B")
     ap.add_argument("--adapter_dir", required=True)
-    ap.add_argument("--gt_jsonl", required=True, help="Use a fixed gt file")
+    ap.add_argument("--gt_jsonl", required=True, help="Ground truth SFT JSONL file")
     ap.add_argument("--out_pred", required=True)
-    ap.add_argument("--n", type=int, default=200)
-    ap.add_argument("--max_length", type=int, default=512)
+    ap.add_argument("--n", type=int, default=200, help="Number of samples to evaluate")
+    ap.add_argument("--max_length", type=int, default=1024)
     ap.add_argument("--max_new_tokens", type=int, default=512)
+    ap.add_argument("--seed", type=int, default=42, help="Shuffle seed for reproducibility")
     args = ap.parse_args()
 
     if not os.path.exists(args.adapter_dir):
@@ -41,13 +56,13 @@ def main():
     if not os.path.exists(args.gt_jsonl):
         raise FileNotFoundError(args.gt_jsonl)
 
-    # Load gt dataset
+    # ---- Load and shuffle gt dataset ----
     ds = load_dataset("json", data_files={"gt": args.gt_jsonl})["gt"]
+    ds = ds.shuffle(seed=args.seed)
     n = min(args.n, len(ds))
     ds = ds.select(range(n))
 
-    # Add gt_index = row number in this gt file (0..)
-    ds = ds.add_column("gt_index", list(range(len(ds))))
+    print(f"[Info] Loaded {n} samples (shuffled, seed={args.seed}) from {args.gt_jsonl}")
 
     use_cuda = torch.cuda.is_available()
     if use_cuda:
@@ -102,15 +117,27 @@ def main():
                     parsed = None
                     parse_ok = False
 
+            # Embed ground truth directly — no more index-based alignment
+            gt_obj = parse_gt_output(ex)
+
             record = {
-                "gt_index": ex["gt_index"],
-                "parse_ok": parse_ok,
-                "pred_json": parsed,
-                "raw": raw,
+                "gt": {
+                    "primary_diagnosis": (gt_obj.get("primary_diagnosis") or "").strip(),
+                    "differential_diagnosis": gt_obj.get("differential_diagnosis", []),
+                },
+                "pred": {
+                    "parse_ok": parse_ok,
+                    "pred_json": parsed,
+                    "raw": raw,
+                },
             }
             fout.write(json.dumps(record, ensure_ascii=False) + "\n")
 
-    print(f"[OK] wrote preds: {args.out_pred} | n={n} | gt={args.gt_jsonl}")
+            if (i + 1) % 50 == 0:
+                print(f"[Progress] {i + 1}/{n}")
+
+    print(f"[OK] Predictions saved: {args.out_pred} | n={n}")
+
 
 if __name__ == "__main__":
     main()
