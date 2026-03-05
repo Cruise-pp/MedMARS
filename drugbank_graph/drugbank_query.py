@@ -4,8 +4,11 @@ import re
 import html
 import difflib
 from typing import List, Dict, Any, Tuple, Optional
+from pathlib import Path
 
-DB_PATH = "../processed/drugbank/drugbank_ddi.sqlite"
+_BASE_DIR = Path(__file__).resolve().parent.parent
+
+DB_PATH = str(_BASE_DIR / "processed/drugbank/drugbank_ddi.sqlite")
 
 _NON_ALNUM = re.compile(r"[^a-z0-9\s]+")
 _SPACES = re.compile(r"\s+")

@@ -3,12 +3,17 @@ import json
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from rank_bm25 import BM25Okapi
+from pathlib import Path
+from transformers import logging
+
+logging.set_verbosity_error()
 
 _model = None
 _index = None
 _corpus = None
 _bm25 = None
 
+_BASE_DIR = Path(__file__).resolve().parent.parent  # → 项目根目录
 
 def _ensure_loaded():
     global _model, _index, _corpus, _bm25
@@ -16,10 +21,10 @@ def _ensure_loaded():
         return
 
     _model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    _index = faiss.read_index("../processed/medquad/medquad_index.faiss")
+    _index = faiss.read_index(str(_BASE_DIR / "processed/medquad/medquad_index.faiss"))
 
     _corpus = []
-    with open("../processed/medquad/medquad_corpus.jsonl", "r", encoding="utf-8") as f:
+    with open(_BASE_DIR / "processed/medquad/medquad_corpus.jsonl", "r", encoding="utf-8") as f:
         for line in f:
             _corpus.append(json.loads(line))
 
@@ -70,20 +75,20 @@ def search(query: str, top_k: int = 5, retrieve_k: int = 50) -> list[dict]:
         })
     return results
 
-# if __name__ == "__main__":
-#     test_queries = [
-#         "What is type 2 diabetes?",
-#         "What are the side effects of metformin?",
-#         "How is hypertension treated?",
-#         "What causes chest pain?",
-#         "asdfghjkl",  # 垃圾输入，看 graceful degradation
-#     ]
-#     for q in test_queries:
-#         print(f"\n{'='*60}")
-#         print(f"Query: {q}")
-#         print(f"{'='*60}")
-#         results = search(q, top_k=3)
-#         for i, r in enumerate(results):
-#             print(f"  [{i+1}] score={r['score']:.4f}")
-#             print(f"      Q: {r['question'][:100]}")
-#             print(f"      A: {r['answer'][:120]}...")
+if __name__ == "__main__":
+    test_queries = [
+        "What is type 2 diabetes?",
+        "What are the side effects of metformin?",
+        "How is hypertension treated?",
+        "What causes chest pain?",
+        "asdfghjkl",  # 垃圾输入，看 graceful degradation
+    ]
+    for q in test_queries:
+        print(f"\n{'='*60}")
+        print(f"Query: {q}")
+        print(f"{'='*60}")
+        results = search(q, top_k=3)
+        for i, r in enumerate(results):
+            print(f"  [{i+1}] score={r['score']:.4f}")
+            print(f"      Q: {r['question'][:100]}")
+            print(f"      A: {r['answer'][:120]}...")
