@@ -16,10 +16,10 @@ def _ensure_loaded():
         return
 
     _model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    _index = faiss.read_index("processed/medquad/medquad_index.faiss")
+    _index = faiss.read_index("../processed/medquad/medquad_index.faiss")
 
     _corpus = []
-    with open("processed/medquad/medquad_corpus.jsonl", "r", encoding="utf-8") as f:
+    with open("../processed/medquad/medquad_corpus.jsonl", "r", encoding="utf-8") as f:
         for line in f:
             _corpus.append(json.loads(line))
 

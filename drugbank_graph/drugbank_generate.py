@@ -206,8 +206,8 @@ def extract_jsonl(xml_path: Path, out_nodes: Path, out_edges: Path, max_drugs: O
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--xml", type=str, default="Datasets/drugbank.xml", help="Path to DrugBank XML")
-    ap.add_argument("--out_dir", type=str, default="processed/drugbank", help="Output directory")
+    ap.add_argument("--xml", type=str, default="../Datasets/drugbank.xml", help="Path to DrugBank XML")
+    ap.add_argument("--out_dir", type=str, default="../processed/drugbank", help="Output directory")
     ap.add_argument("--max_drugs", type=int, default=None, help="Optional cap for quick test")
     args = ap.parse_args()
 

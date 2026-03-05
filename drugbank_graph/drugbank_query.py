@@ -5,7 +5,7 @@ import html
 import difflib
 from typing import List, Dict, Any, Tuple, Optional
 
-DB_PATH = "processed/drugbank/drugbank_ddi.sqlite"
+DB_PATH = "../processed/drugbank/drugbank_ddi.sqlite"
 
 _NON_ALNUM = re.compile(r"[^a-z0-9\s]+")
 _SPACES = re.compile(r"\s+")

@@ -5,7 +5,7 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 
 def main():
-    csv_path = "Datasets/MedQuAD.csv" 
+    csv_path = "../Datasets/MedQuAD.csv" 
     try:
         df = pd.read_csv(csv_path)
     except FileNotFoundError:
@@ -23,16 +23,16 @@ def main():
     print("Generating embeddings...")
     embeddings = model.encode(texts_to_embed, show_progress_bar=True, batch_size=64)
 
-    os.makedirs("processed/medquad", exist_ok=True)
+    os.makedirs("../processed/medquad", exist_ok=True)
     dim = embeddings.shape[1]
     index = faiss.IndexFlatIP(dim)
     
     faiss.normalize_L2(embeddings)
     index.add(embeddings) # type: ignore
     
-    faiss.write_index(index, "processed/medquad/medquad_index.faiss")
+    faiss.write_index(index, "../processed/medquad/medquad_index.faiss")
 
-    with open("processed/medquad/medquad_corpus.jsonl", "w", encoding="utf-8") as f:
+    with open("../processed/medquad/medquad_corpus.jsonl", "w", encoding="utf-8") as f:
         for i, row in cleaned_df.iterrows():
             record = {
                 "id": i,

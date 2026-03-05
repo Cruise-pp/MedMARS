@@ -17,9 +17,9 @@ from pathlib import Path
 # =========================
 # CONFIG (edit these)
 # =========================
-NODES_JSONL = Path("processed/drugbank/drug_nodes.jsonl")
-EDGES_JSONL = Path("processed/drugbank/ddi_edges.jsonl")
-OUT_DB = Path("processed/drugbank/drugbank_ddi.sqlite")
+NODES_JSONL = Path("../processed/drugbank/drug_nodes.jsonl")
+EDGES_JSONL = Path("../processed/drugbank/ddi_edges.jsonl")
+OUT_DB = Path("../processed/drugbank/drugbank_ddi.sqlite")
 
 OVERWRITE = True
 COMMIT_EVERY_NODES = 20000

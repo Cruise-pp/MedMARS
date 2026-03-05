@@ -13,7 +13,7 @@ Architecture:
 """
 
 import requests
-import drugbank_query as dq
+from drugbank_graph import drugbank_query as dq
 import json
 import operator
 from typing import TypedDict, Annotated, List, Optional
