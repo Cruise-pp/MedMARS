@@ -578,8 +578,7 @@ def synthesizer(state: AgentState) -> dict:
     )
 
     # TODO: uncomment to use real DeepSeek API
-    # final_response = call_deepseek(_SYNTH_SYSTEM, user_prompt)
-    final_response = f"[STUB Synthesizer] Based on: {diagnosis_output[:120]}…" # type: ignore
+    final_response = call_deepseek(_SYNTH_SYSTEM, user_prompt)
 
     print(f"[Synthesizer] response length = {len(final_response)}")
     return {
