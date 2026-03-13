@@ -8,7 +8,7 @@ Architecture:
     ├─ symptom_diagnosis  → KnowledgeAgent-Diagnosis (fine-tuned LLM / Ablation)
     ├─ medication_inquiry → KnowledgeAgent-Medication (GraphRAG + LLM / Ablation)
     ├─ general_qa         → KnowledgeAgent-General    (RAG + LLM / Ablation)
-    └─ has image?         → VisionAgent (Ablation) → KnowledgeAgent-*
+    └─ has image?         → VisionAgent (Ablation)
   All knowledge paths    → Synthesizer (DeepSeek V3) → END
 """
 
@@ -37,7 +37,7 @@ OPENAI_API_KEY = "xxx"                          # TODO: 换成你的 key
 OPENAI_MODEL = "gpt-4o-mini"
 
 # DrugBank SQLite path (used by medication branch)
-DRUGBANK_DB_PATH = "/workspace/drugbank_ddi.sqlite"
+DRUGBANK_DB_PATH = "/workspace/processed/drugbank/drugbank_ddi.sqlite"
 
 # Config
 DIAGNOSIS_BASE_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
@@ -608,6 +608,8 @@ Rules:
 - Use simple language the patient can understand
 - Always recommend seeing a healthcare professional for serious concerns
 - Be empathetic but factual; do NOT fabricate information"""
+# You can add a more rules. E.g.
+# - Be brief and concise, with only 1 sentence.
 
 def synthesizer(state: AgentState) -> dict:
     diagnosis_output  = state.get("diagnosis_output",  "")
@@ -658,17 +660,6 @@ def route_after_orchestrator(state: AgentState) -> str:
     }
     return _INTENT_TO_NODE[intent] if intent in _INTENT_TO_NODE else "knowledge_general"
 
-
-def route_after_vision(state: AgentState) -> str:
-    intent = state.get("intent", "symptom_diagnosis")
-    _INTENT_TO_NODE = {
-        "symptom_diagnosis":  "knowledge_diagnosis",
-        "medication_inquiry": "knowledge_medication",
-        "general_qa":         "knowledge_general",
-    }
-    return _INTENT_TO_NODE[intent] if intent in _INTENT_TO_NODE else "knowledge_diagnosis"
-
-
 # ================================================================
 # 8. Build LangGraph
 # ================================================================
@@ -694,16 +685,7 @@ workflow.add_conditional_edges(
     },
 )
 
-workflow.add_conditional_edges(
-    "vision_agent",
-    route_after_vision,
-    {
-        "knowledge_diagnosis":  "knowledge_diagnosis",
-        "knowledge_medication": "knowledge_medication",
-        "knowledge_general":    "knowledge_general",
-    },
-)
-
+workflow.add_edge("vision_agent", "synthesizer")
 workflow.add_edge("knowledge_diagnosis",  "synthesizer")
 workflow.add_edge("knowledge_medication", "synthesizer")
 workflow.add_edge("knowledge_general",    "synthesizer")
