@@ -16,6 +16,8 @@ import json
 import operator
 import torch
 import gc
+import os
+from pathlib import Path
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
@@ -35,15 +37,19 @@ from PIL import Image
 # ================================================================
 OPENAI_API_KEY = "xxx"                          # TODO: 换成你的 key
 OPENAI_MODEL = "gpt-4o-mini"
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 # DrugBank SQLite path (used by medication branch)
-DRUGBANK_DB_PATH = "/workspace/processed/drugbank/drugbank_ddi.sqlite"
+DRUGBANK_DB_PATH = os.getenv(
+    "DRUGBANK_DB_PATH",
+    str(PROJECT_ROOT / "processed/drugbank/drugbank_ddi.sqlite"),
+)
 
 # Config
 DIAGNOSIS_BASE_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
-DIAGNOSIS_ADAPTER_DIR = "/workspace/mistral_7b"
+DIAGNOSIS_ADAPTER_DIR = os.getenv("DIAGNOSIS_ADAPTER_DIR", str(PROJECT_ROOT / "mistral_7b"))
 VISION_BASE_MODEL = "Qwen/Qwen2-VL-7B-Instruct"
-VISION_ADAPTER_DIR = "/workspace/qwen_vl_lora"
+VISION_ADAPTER_DIR = os.getenv("VISION_ADAPTER_DIR", str(PROJECT_ROOT / "qwen_vl_lora"))
 
 # ================================================================
 # 1. State
@@ -771,7 +777,7 @@ if __name__ == "__main__":
     print("=" * 60)
     r3 = run_turn(
         "I found this rash on my finger, what could it be?",
-        user_image="/workspace/bk3_c8_43.png",
+        user_image=str(PROJECT_ROOT / "processed/mmskin/MM-SkinQA-small/bk3_c8_43.png"),
         ablation_flags={
             "use_vision": False,               # Disabled! Image is ignored.
             "use_diagnosis_agent": True,

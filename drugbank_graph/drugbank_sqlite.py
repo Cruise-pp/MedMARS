@@ -4,7 +4,7 @@ Build DrugBank DDI SQLite database from:
   - ddi_edges.jsonl   (src_drug_id, dst_drug_id, description[, src_name, dst_name])
 
 No argparse. Edit the CONFIG section and run:
-  python scripts/build_drugbank_sqlite_noargs.py
+  python drugbank_graph/drugbank_sqlite.py
 """
 
 import json
@@ -13,13 +13,14 @@ import sqlite3
 from collections import defaultdict
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # =========================
 # CONFIG (edit these)
 # =========================
-NODES_JSONL = Path("../processed/drugbank/drug_nodes.jsonl")
-EDGES_JSONL = Path("../processed/drugbank/ddi_edges.jsonl")
-OUT_DB = Path("../processed/drugbank/drugbank_ddi.sqlite")
+NODES_JSONL = PROJECT_ROOT / "processed/drugbank/drug_nodes.jsonl"
+EDGES_JSONL = PROJECT_ROOT / "processed/drugbank/ddi_edges.jsonl"
+OUT_DB = PROJECT_ROOT / "processed/drugbank/drugbank_ddi.sqlite"
 
 OVERWRITE = True
 COMMIT_EVERY_NODES = 20000

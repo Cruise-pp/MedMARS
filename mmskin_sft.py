@@ -10,6 +10,7 @@ from pathlib import Path
 import pandas as pd
 
 random.seed(42)
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 def preprocess_mmskin_data(vqa_path: Path, caption_path: Path, output_path: Path) -> None:
     """
@@ -79,9 +80,9 @@ def main():
     parser = argparse.ArgumentParser(description="Preprocess and sample MMSkin clinical VQA data into JSONL format.")
     
     # Consolidated arguments
-    parser.add_argument("--data_dir", type=Path, default=Path("../data/MM-SkinQA"),
+    parser.add_argument("--data_dir", type=Path, default=PROJECT_ROOT / "Datasets/MM-SkinQA",
                         help="Base directory containing VQA.csv, caption.csv, and original images.")
-    parser.add_argument("--output_dir", type=Path, default=Path("../data"),
+    parser.add_argument("--output_dir", type=Path, default=PROJECT_ROOT / "processed/mmskin",
                         help="Base directory to save the JSONL files and sampled images.")
     parser.add_argument("--sample_size", type=int, default=1280,
                         help="Number of items to sample for the smaller dataset.")

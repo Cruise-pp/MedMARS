@@ -19,7 +19,7 @@ What it does
 
 Usage
 -----
-python ddxplus_sft_100.py --base_dir Datasets/DDXPlus --out processed/ddxplus_sft/train_100.jsonl --n 100 --seed 42
+python ddxplus_sft.py --base_dir Datasets/DDXPlus --out processed/ddxplus_sft/train_100.jsonl --n 100 --seed 42
 
 Notes
 -----
@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 # -----------------------------
 # Parsing utilities
@@ -385,14 +386,24 @@ def reservoir_sample_csv(csv_path: Path, n: int, seed: int, chunksize: int = 500
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--base_dir", type=str, default="Datasets/DDXPlus", help="DDXPlus directory")
+    ap.add_argument(
+        "--base_dir",
+        type=str,
+        default=str(PROJECT_ROOT / "Datasets/DDXPlus"),
+        help="DDXPlus directory",
+    )
     ap.add_argument("--split", type=str, default="validate", choices=["train", "validate", "test"], help="Which CSV split")
     ap.add_argument("--n", type=int, default=100, help="Number of samples to export")
     ap.add_argument("--k", type=int, default=5, help="Top-k size for differential diagnoses")
     ap.add_argument("--seed", type=int, default=42, help="Random seed for sampling")
     ap.add_argument("--chunksize", type=int, default=50000, help="CSV chunksize for streaming read")
     ap.add_argument("--max_lines", type=int, default=None, help="Optional cap on total evidence lines")
-    ap.add_argument("--out", type=str, default="processed/ddxplus_sft/validate.jsonl", help="Output JSONL path")
+    ap.add_argument(
+        "--out",
+        type=str,
+        default=str(PROJECT_ROOT / "processed/ddxplus_sft/validate.jsonl"),
+        help="Output JSONL path",
+    )
     args = ap.parse_args()
 
     base = Path(args.base_dir)

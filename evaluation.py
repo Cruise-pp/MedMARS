@@ -2,16 +2,20 @@
 import json
 import random
 import sqlite3
+from pathlib import Path
 import pandas as pd
 from typing import List, Dict, Any, Optional
 from tqdm import tqdm
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from rouge_score import rouge_scorer
 
-from orchestration_update_vision import run_turn
+from orchestration import run_turn
 
 # Set random seed for reproducibility
 random.seed(42)
+PROJECT_ROOT = Path(__file__).resolve().parent
+DATASETS_DIR = PROJECT_ROOT / "Datasets"
+PROCESSED_DIR = PROJECT_ROOT / "processed"
 
 
 # ==========================================
@@ -122,7 +126,7 @@ def eval_qa_agent(
         answer = d["answer"]
         
         # Attach image path if evaluating vision
-        image_path = f"{image_dir}/{d['image']}" if image_dir and "image" in d else None
+        image_path = str(Path(image_dir) / d["image"]) if image_dir and "image" in d else None
         
         model_output = run_turn(
             user_text=question, 
@@ -194,80 +198,80 @@ if __name__ == "__main__":
     # 1. Knowledge Agent Evaluation
     print("\n--- Running Knowledge Agent Evaluation ---")
     # Sampled test data from ddxplus test dataset
-    ddx_data = load_jsonl("/workspace/processed/ddxplus_sft/test_2000.jsonl")
+    ddx_data = load_jsonl(str(PROCESSED_DIR / "ddxplus_sft/test.jsonl"))
     
     print("Evaluating with Knowledge Agent (Baseline)")
     eval_knowledge_agent(
         input_data=ddx_data, num_data=NUM_DATA_SAMPLES, k=5, 
-        output_path="/workspace/processed/ddxplus_sft/ab_w_knowledge.json", 
+        output_path=str(PROCESSED_DIR / "ddxplus_sft/ab_w_knowledge.json"), 
         is_ablation=False
     )
     print("Evaluating without Knowledge Agent (Ablated)")
     eval_knowledge_agent(
         input_data=ddx_data, num_data=NUM_DATA_SAMPLES, k=5, 
-        output_path="/workspace/processed/ddxplus_sft/ab_wo_knowledge.json", 
+        output_path=str(PROCESSED_DIR / "ddxplus_sft/ab_wo_knowledge.json"), 
         is_ablation=True
     )
 
     # 2. Vision Agent Evaluation
     print("\n--- Running Vision Agent Evaluation ---")
-    mmskin_data = load_jsonl("/workspace/Datasets/mmskin_sft_small.jsonl")
+    mmskin_data = load_jsonl(str(PROCESSED_DIR / "mmskin/mmskin_sft_small.jsonl"))
     
     print("Evaluating with Vision Agent (Baseline)")
     eval_qa_agent(
         input_data=mmskin_data, 
         num_data=NUM_DATA_SAMPLES, 
-        output_path="/workspace/processed/mmskin/ab_w_vision.json", 
+        output_path=str(PROCESSED_DIR / "mmskin/ab_w_vision.json"), 
         ablation_target=None, # Baseline
-        image_dir="/workspace/Datasets/MMSkin-QA-small",
+        image_dir=str(PROCESSED_DIR / "mmskin/MM-SkinQA-small"),
         sample_from_end=True
     )
     print("Evaluating without Vision Agent (Ablated)")
     eval_qa_agent(
         input_data=mmskin_data, 
         num_data=NUM_DATA_SAMPLES, 
-        output_path="/workspace/processed/mmskin/ab_wo_vision.json", 
+        output_path=str(PROCESSED_DIR / "mmskin/ab_wo_vision.json"), 
         ablation_target="use_vision", # Ablated
-        image_dir="/workspace/Datasets/MMSkin-QA-small",
+        image_dir=str(PROCESSED_DIR / "mmskin/MM-SkinQA-small"),
         sample_from_end=True
     )
 
     # 3. GraphRAG Evaluation
     print("\n--- Running GraphRAG Evaluation ---")
-    with open("/workspace/processed/drugbank/drugbank_q.json", "r") as f:
+    with open(PROCESSED_DIR / "drugbank/drugbank_q.json", "r") as f:
         drugbank_data = json.load(f)
         
     print("Evaluating with GraphRAG (Baseline)")
     eval_qa_agent(
         input_data=drugbank_data, 
         num_data=NUM_DATA_SAMPLES, 
-        output_path="/workspace/processed/drugbank/ab_w_graphrag.json", 
+        output_path=str(PROCESSED_DIR / "drugbank/ab_w_graphrag.json"), 
         ablation_target=None # Baseline
     )
     print("Evaluating without GraphRAG (Ablated)")
     eval_qa_agent(
         input_data=drugbank_data, 
         num_data=NUM_DATA_SAMPLES, 
-        output_path="/workspace/processed/drugbank/ab_wo_graphrag.json", 
+        output_path=str(PROCESSED_DIR / "drugbank/ab_wo_graphrag.json"), 
         ablation_target="use_medication_graphrag" # Ablated
     )
 
     # 4. MedQA (VectorRAG) Evaluation
     print("\n--- Running VectorRAG Evaluation ---")
-    df = pd.read_csv("/workspace/Datasets/medquad.csv")
+    df = pd.read_csv(DATASETS_DIR / "MedQuAD.csv")
     medquad_data = [{"question": row["question"], "answer": row["answer"]} for _, row in df.iterrows()]
     
     print("Evaluating with VectorRAG (Baseline)")
     eval_qa_agent(
         input_data=medquad_data, 
         num_data=NUM_DATA_SAMPLES, 
-        output_path="/workspace/processed/medquad/ab_w_vectorrag.json", 
+        output_path=str(PROCESSED_DIR / "medquad/ab_w_vectorrag.json"), 
         ablation_target=None # Baseline
     )
     print("Evaluating without VectorRAG (Ablated)")
     eval_qa_agent(
         input_data=medquad_data, 
         num_data=NUM_DATA_SAMPLES, 
-        output_path="/workspace/processed/medquad/ab_wo_vectorrag.json", 
+        output_path=str(PROCESSED_DIR / "medquad/ab_wo_vectorrag.json"), 
         ablation_target="use_general_vectorrag" # Ablated
     )
