@@ -25,7 +25,7 @@ A multi-agent medical AI system built on **LangGraph** that combines fine-tuned 
 
 ## Overview
 
-This project implements a **Graph-VMA (Vision-Medication-Agent)** medical assistant that routes user queries through specialized agents:
+This project implements a **Collaborative Multi-Agent** medical assistant that routes user queries through specialized agents:
 
 | Intent | Agent | Backing Model / Data |
 |---|---|---|
