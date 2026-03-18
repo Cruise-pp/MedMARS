@@ -89,8 +89,7 @@ Place all raw datasets under `Datasets/` before running preprocessing.
 ## Installation
 
 ```bash
-# Clone the repo and navigate to project root
-cd "ECE285 Project"
+# Clone the repo
 
 # Install Python dependencies
 pip install torch transformers peft accelerate
