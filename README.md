@@ -81,8 +81,6 @@ Project/
 | **MedQuAD** | CSV | ~47k QA pairs | General medical Q&A retrieval |
 | **DrugBank** | XML | ~702 MB | Drug interactions, indications |
 | **MM-SkinQA** | VQA.csv + images | ~1k+ images | Skin disease visual QA |
-| **HealthCareMagic** | JSON | ~36M rows | Medical conversations (reference) |
-| **PubMed_200k_RCT** | TXT | 200k papers | Medical literature (reference) |
 
 Place all raw datasets under `Datasets/` before running preprocessing.
 
