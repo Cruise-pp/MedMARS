@@ -4,6 +4,10 @@ A multi-agent medical AI system built on **LangGraph** that combines fine-tuned 
 
 ---
 
+## Team
+- Yufan Shi — Data Preprocessing/ Agent Workflow/ Finetuning/ RAG
+- You Chen - Agent Workflow/ Finetuning/ Evaluation
+
 ## Table of Contents
 
 - [Overview](#overview)
