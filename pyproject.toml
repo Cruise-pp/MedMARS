@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "medmars"
+version = "0.1.0"
+description = "MedMARS — Multi-Agent Retrieval System for Medicine"
+requires-python = ">=3.9"
+dependencies = [
+    "rich",
+    "prompt_toolkit",
+]
+
+[project.scripts]
+medmars = "cli:main"
+
+[tool.setuptools]
+py-modules = ["cli"]
+packages = []
