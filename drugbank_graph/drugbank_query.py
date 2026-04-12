@@ -16,11 +16,21 @@ _SPACES = re.compile(r"\s+")
 # alias key cache: db_path -> List[str]
 _ALIAS_KEYS_CACHE: Dict[str, List[str]] = {}
 
+# connection cache: db_path -> Connection (reused across all queries)
+_CONN_CACHE: Dict[str, sqlite3.Connection] = {}
+
 
 def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Return a cached SQLite connection for the given db_path.
+
+    Connections are created once and reused for all subsequent queries.
+    This is safe because all operations are read-only.
+    """
+    if db_path not in _CONN_CACHE:
+        conn = sqlite3.connect(db_path, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        _CONN_CACHE[db_path] = conn
+    return _CONN_CACHE[db_path]
 
 
 def fetch_all(conn: sqlite3.Connection, sql: str, params: Tuple = ()) -> List[Dict[str, Any]]:
@@ -42,10 +52,7 @@ def _get_alias_keys(db_path: str) -> List[str]:
         return _ALIAS_KEYS_CACHE[db_path]
 
     conn = get_connection(db_path)
-    try:
-        rows = fetch_all(conn, "SELECT DISTINCT alias FROM aliases", ())
-    finally:
-        conn.close()
+    rows = fetch_all(conn, "SELECT DISTINCT alias FROM aliases", ())
 
     keys: List[str] = []
     for r in rows:
@@ -76,10 +83,7 @@ def _resolve_exact(query: str, top_n: int = 10, db_path: str = DB_PATH) -> Dict[
     """
 
     conn = get_connection(db_path)
-    try:
-        rows = fetch_all(conn, sql, (norm, int(top_n)))
-    finally:
-        conn.close()
+    rows = fetch_all(conn, sql, (norm, int(top_n)))
 
     candidates = []
     for r in rows:
@@ -115,10 +119,7 @@ def _resolve_prefix(query: str, top_n: int = 10, db_path: str = DB_PATH) -> Dict
     """
 
     conn = get_connection(db_path)
-    try:
-        rows = fetch_all(conn, sql, (norm, int(top_n)))
-    finally:
-        conn.close()
+    rows = fetch_all(conn, sql, (norm, int(top_n)))
 
     candidates = [{
         "drug_id": (r.get("drug_id") or "").strip(),
@@ -164,31 +165,28 @@ def _resolve_fuzzy(
     """
 
     conn = get_connection(db_path)
-    try:
-        best_by_drug: Dict[str, Dict[str, Any]] = {}
-        for a in close_aliases:
-            score = difflib.SequenceMatcher(None, norm, a).ratio()
-            if score < float(min_score):
-                continue
+    best_by_drug: Dict[str, Dict[str, Any]] = {}
+    for a in close_aliases:
+        score = difflib.SequenceMatcher(None, norm, a).ratio()
+        if score < float(min_score):
+            continue
 
-            rows = fetch_all(conn, sql, (a,))
-            for r in rows:
-                did = (r.get("drug_id") or "").strip()
-                if not did:
-                    continue
-                cand = {
-                    "drug_id": did,
-                    "name": (r.get("name") or "").strip(),
-                    "degree": int(r.get("degree") or 0),
-                    "source": (r.get("source") or "").strip(),
-                    "matched_alias": a,
-                    "score": float(score),
-                }
-                prev = best_by_drug.get(did)
-                if (prev is None) or (cand["score"] > prev["score"]):
-                    best_by_drug[did] = cand
-    finally:
-        conn.close()
+        rows = fetch_all(conn, sql, (a,))
+        for r in rows:
+            did = (r.get("drug_id") or "").strip()
+            if not did:
+                continue
+            cand = {
+                "drug_id": did,
+                "name": (r.get("name") or "").strip(),
+                "degree": int(r.get("degree") or 0),
+                "source": (r.get("source") or "").strip(),
+                "matched_alias": a,
+                "score": float(score),
+            }
+            prev = best_by_drug.get(did)
+            if (prev is None) or (cand["score"] > prev["score"]):
+                best_by_drug[did] = cand
 
     candidates = list(best_by_drug.values())
     candidates.sort(key=lambda x: (-x["score"], -x["degree"], x["name"]))
@@ -237,10 +235,7 @@ def get_drug(drug_id: str, db_path: str = DB_PATH) -> Dict[str, Any]:
     """
 
     conn = get_connection(db_path)
-    try:
-        rows = fetch_all(conn, sql, (did,))
-    finally:
-        conn.close()
+    rows = fetch_all(conn, sql, (did,))
 
     if not rows:
         return {"drug_id": drug_id, "status": "not_found", "drug": None}
@@ -264,10 +259,7 @@ def neighbors(drug_id: str, top_n: int = 10, db_path: str = DB_PATH) -> Dict[str
     """
 
     conn = get_connection(db_path)
-    try:
-        rows = fetch_all(conn, sql, (did, int(top_n) * 50))
-    finally:
-        conn.close()
+    rows = fetch_all(conn, sql, (did, int(top_n) * 50))
 
     seen = set()
     out = []
@@ -303,10 +295,7 @@ def ddi_between(drug_id_a: str, drug_id_b: str, top_n: int = 20, db_path: str = 
     """
 
     conn = get_connection(db_path)
-    try:
-        rows = fetch_all(conn, sql, (a, b, b, a, int(top_n)))
-    finally:
-        conn.close()
+    rows = fetch_all(conn, sql, (a, b, b, a, int(top_n)))
 
     # 去重 + unescape
     seen = set()
