@@ -13,7 +13,7 @@ MODEL_PROFILES = {
         "out_dir": "outputs/qwen06b_lora_ddxplus",
         "batch_size": 32,
         "grad_accum": 1,
-        "leraning_rate": 1e-4,
+        "learning_rate": 1e-4,
         "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj"],
     },
     "mistral_7b": {
@@ -21,7 +21,7 @@ MODEL_PROFILES = {
         "out_dir": "outputs/mistral7b_lora_ddxplus",
         "batch_size": 4,
         "grad_accum": 8,
-        "leraning_rate": 2e-5,
+        "learning_rate": 2e-5,
         "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj"],
     },
 }
